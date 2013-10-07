@@ -1,0 +1,20 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets\Scripts\StatusBar.js">
+    <Files>
+      <File FileName="Assets\Shaders\ForceField.shader" Line="23" Column="1" />
+      <File FileName="Assets\Scripts\SnakeSection.js" Line="2" Column="1" />
+      <File FileName="Assets\Scripts\SnakeControler.js" Line="157" Column="27" />
+      <File FileName="Assets\Scripts\StatusBar.js" Line="12" Column="29" />
+    </Files>
+    <Pads>
+      <Pad Id="ClassPad">
+        <State expanded="True" selected="True" />
+      </Pad>
+    </Pads>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>
