@@ -63,6 +63,8 @@ var moveTotal: float = 0;
 private var rightWheel:Transform;
 private var leftWheel:Transform;
 private var wheelRadius:float = 0.272;
+@System.NonSerialized
+var conector:Transform;
 private var join:Transform;
 private var rayProjectionPoint:Transform;
 private var conected:boolean = true;
@@ -96,10 +98,9 @@ function Start(){
 	Body = transform.FindChild("Body").transform;
 	joinAttachmentPoint = transform.FindChild("Body/JoinAttachmentPoint").transform;
 	join = transform.FindChild("Body/JoinContainer").transform;
-	if(nextSectionId == -1){
-	
-		//Destroy(join.gameObject);
-	}
+	conector = transform.FindChild("Body/JoinContainer/Conector").transform;
+	Debug.Log("section " + sectionId + " conector: " + conector);
+	conector.renderer.enabled = false;
 	
 	forceField = transform.FindChild("Body/ForceField").transform;
 	forceFieldMaterial = forceField.gameObject.renderer.material;
@@ -130,7 +131,7 @@ function Update () {
 			if (Physics.Raycast (rayProjectionPoint.position,rayDirection, hit, detectDist)) {
 				var distanceToItem = hit.distance;
 			}
-			Debug.DrawRay(rayProjectionPoint.position,rayDirection * detectDist, Color.green);
+		//	Debug.DrawRay(rayProjectionPoint.position,rayDirection * detectDist, Color.green);
 		
 			if(hit.collider != null){
 				if(hit.collider.CompareTag("Terrain")){
