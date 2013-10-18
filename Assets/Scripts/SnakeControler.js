@@ -39,22 +39,40 @@ var cameraOffset:Transform;
 
 private var callInit:boolean = true;
 
-private var lengthDisplay:GUIText;
+private var lengthDisplayText:GUIText;
+private var lengthDisplayNum:int;
+
+var minSpeed: float = 0.2;
+var maxSpeed: float = 10;
+var speedIncrement: float = 0.2;
+
+var heightDamping:float = 0.5;
+var cameraHeight:float = 0;
+
+var spawnPoint:Transform;
+
+//AudioSources
+private var engineMain:AudioSource;
+private var engineTurn:AudioSource;
+private var ping:AudioSource;
+private var engineVolume:float = 0.5;
+
 
 
 function Start (){
 	//Physics.IgnoreLayerCollision(8,8);
+	
 	cameraSphere = GameObject.Find("CameraSphere").transform;
-	lengthDisplay = GameObject.Find("UnitCountDisplay").GetComponent(GUIText);
+	lengthDisplayText = GameObject.Find("UnitCountDisplay").GetComponent(GUIText);
 	nextDirection = 0;
 	for(var i:int =0; i < initialSnakeLength;i++){
 		var snakeSection:SnakeSection = addSection(i);
 		if(i == 0){
-				snakeSection.gameObject.transform.position =Vector3 (0, 0.5, -i * snakeSection.sectionLength);
+				snakeSection.gameObject.transform.position =Vector3 (spawnPoint.position.x, 0.5, spawnPoint.position.z -(i * snakeSection.sectionLength));
 				snakeSection.speed = speed;
 				snakeSection.direction=currentDirection;
 		}else{
-				snakeSection.gameObject.transform.position =Vector3 (0, 0.5, -i * snakeSection.sectionLength);
+				snakeSection.gameObject.transform.position =Vector3 (spawnPoint.position.x, 0.5, spawnPoint.position.z -(i * snakeSection.sectionLength));
 				snakeSection.speed = speed;
 				snakeSection.direction=currentDirection;
 		}
@@ -76,12 +94,53 @@ function Start (){
 		snakeSection = entry.Value;
 		snakeSection.isEnabled = true;
 	}
+	
+	
 }
+
+function setUpAudio(){
+	var audio:Array = snakeHead.GetComponentsInChildren(AudioSource);
+	
+	for(var i:int =0;i<audio.length;i++){
+		var audioSource:AudioSource = audio[i] as AudioSource;
+		if(audioSource.clip.name == "engineMain"){
+			engineMain = audioSource;
+			engineMain.volume = engineVolume;
+			engineMain.Play();
+		}
+		
+		if(audioSource.clip.name == "engineTurn"){
+			engineTurn = audioSource;
+			engineTurn.volume = 0.35 * engineVolume;
+		}
+		
+		if(audioSource.clip.name == "ping"){
+			ping = audioSource;
+			//ping.volume = ;
+		}
+		
+ 	}
+ }
 
 function init(){
  	callInit = false;
+ 	setUpAudio();
+ 	setSpeed();
+ 	setCameraHeight();
  	makeJoins();
  	setLengthText();
+ 	setDisplayLength();
+ 	rangeFinder();
+}
+
+function setDisplayLength(){
+	lengthDisplayNum = snakeLength;
+	setLengthText();
+}
+
+function incrementLengthDisplayNum(){
+	lengthDisplayNum++;
+		setLengthText();
 }
  
 
@@ -96,7 +155,7 @@ function makeJoins(){
 	}
 }
 function setLengthText(){
-	lengthDisplay.text = snakeLength.ToString();
+	lengthDisplayText.text = lengthDisplayNum.ToString();
 }
 
 function addSection(id:int):SnakeSection{
@@ -132,7 +191,6 @@ function addSection(id:int):SnakeSection{
 	}
 		snakeSection.controler = this;
 		snakeParts.Add(id.ToString(),snakeSection);
-		setLengthText();
 		return snakeSection;
 }
 
@@ -151,7 +209,7 @@ function addPickUpSection(){
 		snakeSection.mode = lastSection.mode;
 		lastSection.conector.renderer.enabled = true;
 	}
-	
+	snakeSection.speed = speed;
 	snakeSection.isEnabled = true;
 	//Time.timeScale = 0;
 }
@@ -190,6 +248,12 @@ function getPreviousSection(id:int):SnakeSection{
 	return section;
 }
 
+function setSpeed(){
+	for(var entry:DictionaryEntry in snakeParts){
+	var snakeSection:SnakeSection  = entry.Value;
+			snakeSection.speed = speed;
+	}
+}
 
 
 function Update () {
@@ -200,7 +264,7 @@ function Update () {
 		handleInput();
 		if(nextDirection != 0){
 			if(acceptInput){
-				snakeHead.SetMovement(nextDirection,speed);
+				snakeHead.SetMovement(nextDirection);
 				acceptInput = false;
 			}
 		}else{
@@ -208,6 +272,44 @@ function Update () {
 		}
 		
 		checkSectionContact();
+		setCameraHeight();
+		updateAudio();
+		
+	}
+}
+
+function rangeFinder(){
+	if(alive){
+		if(snakeHead.range != -1){
+			makePing();
+		}else{
+		 rangeFinderDelay();
+		}
+	}
+}
+
+function rangeFinderDelay(){
+ yield WaitForSeconds (1);
+	rangeFinder();
+}
+function makePing(){
+	if(alive){
+		ping.Play();
+		var delay:float = snakeHead.range/10;
+		yield WaitForSeconds (delay);
+		rangeFinder();
+	}
+}
+
+function updateAudio(){
+ var pitch:float = ((speed/maxSpeed) * 1.2) + 0.3;
+	engineMain.pitch= pitch;
+	engineTurn.pitch= pitch*2.5;
+}
+
+function playTurnAudio(){
+	if(alive == true){
+		engineTurn.Play();
 	}
 }
 
@@ -242,7 +344,7 @@ function setForceFieldColor(){
 	newGreen = (contactCount-stableNum)/(snakeLength-stableNum);
 	newRed = 1-newGreen;
 	newColor.r = newRed;
-	newColor.a = 0.5;
+	newColor.a =1;
 	newColor.g = newGreen;
 	var section:SnakeSection;
 	for(var i:int = 0; i < snakeLength; i++){
@@ -296,6 +398,19 @@ function checkSectionContact(){
 	}
 }
 
+function adjustSpeed(dir:int){
+	var increment:float = speedIncrement * dir;
+	speed+=increment;
+	speed = Mathf.Clamp(speed,minSpeed,maxSpeed);
+	setSpeed();
+	cameraHeight = speed-minSpeed;
+	//setCameraHeight();
+}
+
+function setCameraHeight(){
+	Camera.main.transform.localPosition.y = Mathf.Lerp (Camera.main.transform.localPosition.y, cameraHeight, heightDamping * Time.deltaTime);;
+}
+
 function handleInput():void{
 	var horizontal:float = Input.GetAxis("Horizontal");
 	var vertical:float =Input.GetAxis("Vertical");
@@ -317,6 +432,13 @@ function handleInput():void{
   		nextDirection = 4;
  		//LEFT
 	}
- 
+	
+	if (Input.GetKey(KeyCode.F)){
+		adjustSpeed(1);
+	}
+	
+	if (Input.GetKey(KeyCode.V)){
+		adjustSpeed(-1);
+	}
 }
 

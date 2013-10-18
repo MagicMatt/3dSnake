@@ -82,6 +82,7 @@ var contact:boolean = true;
 var joinAttachmentPoint:Transform;
 
 private var detectDist:float = 1.3;
+private var rangeDist:float = 15;
 
 var explosion:GameObject;
 
@@ -90,6 +91,9 @@ var isEnabled:boolean = false;
 
 private var addSectionOnUpdateNext:boolean = false;
 private var pickUpToDestroy:GameObject;
+
+var range:float;
+
 
 
 
@@ -127,10 +131,8 @@ function Update () {
 			var rayDirection:Vector3;
 			rayDirection = Body.forward;
 			var hit : RaycastHit;
-			var layerMaskNum:int = LayerMask.NameToLayer("Ignore Raycast");
-			if (Physics.Raycast (rayProjectionPoint.position,rayDirection, hit, detectDist)) {
-				var distanceToItem = hit.distance;
-			}
+			Physics.Raycast(rayProjectionPoint.position,rayDirection, hit, detectDist);
+			
 		//	Debug.DrawRay(rayProjectionPoint.position,rayDirection * detectDist, Color.green);
 		
 			if(hit.collider != null){
@@ -140,6 +142,14 @@ function Update () {
 					}
 				}
 			}
+			
+			Physics.Raycast (rayProjectionPoint.position,rayDirection, hit, rangeDist);
+				if((hit.collider != null)&&(hit.collider.CompareTag("AddSectionPickUp") == false) ){
+					range = hit.distance;
+				}else{
+					range = -1;
+				}
+			
 	  	}	
 	}	
 }
@@ -156,14 +166,28 @@ function OnTriggerEnter(other : Collider) {
 	}	
 	if(sectionId ==controler.snakeLength-1){
 		if(other.CompareTag("AddSectionPickUp")){
-			addSectionOnUpdateNext = true;	
-			pickUpToDestroy = other.gameObject;			
+		var sectionPickUp:SectionPickUp = other.gameObject.GetComponent(SectionPickUp);
+			if(sectionPickUp.deployed == false){
+				addSectionOnUpdateNext = true;	
+				sectionPickUp.deploySection();
+				pickUpToDestroy = other.gameObject;			
+			}
+		}
+	}	
+	if(sectionId == 0){
+		if(other.CompareTag("AddSectionPickUp")){
+			sectionPickUp = other.gameObject.GetComponent(SectionPickUp);
+			if(sectionPickUp.isActive == false){
+				sectionPickUp.activate();
+				controler.incrementLengthDisplayNum();
+			}					
 		}
 	}	
 	//Debug.Log("OnTriggerEnter");
 }
 
 function callAddSection(){
+
 	controler.addPickUpSection();	
 }
 
@@ -250,12 +274,8 @@ function destroyNextSection(){
 	}
 }
 	
-function SetMovement(_nextDirection:int,_speed:float) {
-	speed = _speed;
+function SetMovement(_nextDirection:int) {
 	nextDirection = _nextDirection;
-
-	
-
 }
 
 
@@ -289,7 +309,7 @@ function UpdateNextInChain () {
 		var nextSection = controler.getSection(nextSectionId);
 		
 		if(nextSection != null){
-			nextSection.SetMovement(passOnDirection,speed);
+			nextSection.SetMovement(passOnDirection);
 		}else{
 			Debug.Log("UpdateNextInChain nextSection == null  section: " + sectionId + ", nextSectionId: " + nextSectionId);
 		}
@@ -315,13 +335,15 @@ function moveForwards():boolean{
 	rightWheel.Rotate(Vector3(wheelRotation,0,0),Space.Self);
 	leftWheel.Rotate(Vector3(wheelRotation,0,0),Space.Self);
 	
+	
+	
 	return callUpdateNext;
 }
 
 function move():void{
+	 
 
-
-	var DirectionSet:System.Boolean = false;
+	var DirectionSet:boolean = false;
 	if(newDirection){
 	newDirection = false;
 		direction = nextDirection;
@@ -356,6 +378,15 @@ function move():void{
 		
 	}
 	
+//Debug.Log("move updateNext: " + updateNext + ", sectionId: " + sectionId);
+	if(moveTotal == 0){
+		//if(sectionId == 0){
+	 		if(direction != 0){
+	 			controler.playTurnAudio();
+	 		}
+	 	//}
+	}
+	
 	
 	var turnStep:float = (turnAngle*speed) * Time.deltaTime;
 	
@@ -363,8 +394,6 @@ function move():void{
 	if(mode == "forward"){
 		updateNext = moveForwards();
 	}
-	
-	
 	
 	if(mode == "turnUp"){
  			updateNext = moveForwards();
@@ -426,6 +455,9 @@ function move():void{
 			updateNext = true;
 		}
 	}
+	
+	
+	
 	if(nextSectionId != -1){
 		var nextSection = controler.getSection(nextSectionId);
 		if(nextSection != null){
@@ -454,7 +486,7 @@ function move():void{
 		if(addSectionOnUpdateNext){
 			addSectionOnUpdateNext = false;
 			callAddSection();
-			Destroy(pickUpToDestroy);
+			//Destroy(pickUpToDestroy);
 		}
 		newDirection = true;
 		UpdateNextInChain();	
