@@ -1,16 +1,29 @@
 #pragma strict
 
+
+//initialisation vars
+var initialSnakeLength: float = 10;
+var initialSpeed:float = 2;
+var minSpeed: float = 0.2;
+var maxSpeed: float = 10;
+var speedIncrement: float = 0.2;
+var heightDamping:float = 0.5;
+var cameraHeight:float = 0;
+var spawnPoint:Transform;
+
+
 @System.NonSerialized
 var nextDirection: int = 0;
 
 @System.NonSerialized
 var currentDirection: int = 0;
 
-//@System.NonSerialized
-var initialSnakeLength: float = 10;
-
-//@System.NonSerialized
+@System.NonSerialized
 var snakeLength: float = 0;
+
+@System.NonSerialized
+var snakeTargetLength: float = 0;
+
 
 @System.NonSerialized
 var speed: float = 3;
@@ -18,7 +31,7 @@ var speed: float = 3;
 var snakeUnit:GameObject;
 var snakeCab:GameObject;
 
-var snakeParts:Hashtable = new Hashtable();
+var snakeParts:Hashtable;
 
 var snakeHead:SnakeSection;
 
@@ -41,41 +54,56 @@ private var callInit:boolean = true;
 
 private var lengthDisplayText:GUIText;
 private var lengthDisplayNum:int;
+private var destroyedSectionCount:int;
 
-var minSpeed: float = 0.2;
-var maxSpeed: float = 10;
-var speedIncrement: float = 0.2;
 
-var heightDamping:float = 0.5;
-var cameraHeight:float = 0;
-
-var spawnPoint:Transform;
 
 //AudioSources
 private var engineMain:AudioSource;
 private var engineTurn:AudioSource;
 private var ping:AudioSource;
+private var proximity:AudioSource;
 private var engineVolume:float = 0.5;
 
+private var lives:int;
+
+private var respawnDirection:Quaternion;
 
 
-function Start (){
-	//Physics.IgnoreLayerCollision(8,8);
-	
+
+var gameManager:GameManager;
+
+
+function Start(){
+	var gameManagerObject:GameObject = GameObject.Find("GameManagerObject");
+	gameManager = gameManagerObject.GetComponentInChildren(GameManager);
 	cameraSphere = GameObject.Find("CameraSphere").transform;
 	lengthDisplayText = GameObject.Find("UnitCountDisplay").GetComponent(GUIText);
+	lives = gameManager.getLives();
+	snakeTargetLength = initialSnakeLength;
+	initialiseSnake();
+}
+
+function initialiseSnake(){
+	snakeParts = new Hashtable();
+	snakeLength = 0;
+	destroyedSectionCount = 0;
 	nextDirection = 0;
-	for(var i:int =0; i < initialSnakeLength;i++){
+	for(var i:int =0; i < snakeTargetLength;i++){
 		var snakeSection:SnakeSection = addSection(i);
-		if(i == 0){
+		//if(i == 0){
+				snakeSection.gameObject.transform.rotation = respawnDirection;
+				//snakeSection.gameObject.transform.position =Vector3 (spawnPoint.position.x, 0.5, spawnPoint.position.z -(i * snakeSection.sectionLength));
+				snakeSection.gameObject.transform.position =spawnPoint.position;
+				snakeSection.gameObject.transform.Translate((-i * snakeSection.sectionLength) * transform.forward,Space.Self);
+				snakeSection.speed = speed;
+				snakeSection.direction=currentDirection;
+	/*	}else{
+				snakeSection.gameObject.transform.rotation = respawnDirection;
 				snakeSection.gameObject.transform.position =Vector3 (spawnPoint.position.x, 0.5, spawnPoint.position.z -(i * snakeSection.sectionLength));
 				snakeSection.speed = speed;
 				snakeSection.direction=currentDirection;
-		}else{
-				snakeSection.gameObject.transform.position =Vector3 (spawnPoint.position.x, 0.5, spawnPoint.position.z -(i * snakeSection.sectionLength));
-				snakeSection.speed = speed;
-				snakeSection.direction=currentDirection;
-		}
+		}*/
 		if(i == 0){
 			snakeHead = snakeSection;
 		}
@@ -94,7 +122,7 @@ function Start (){
 		snakeSection = entry.Value;
 		snakeSection.isEnabled = true;
 	}
-	
+	callInit = true;
 	
 }
 
@@ -116,7 +144,9 @@ function setUpAudio(){
 		
 		if(audioSource.clip.name == "ping"){
 			ping = audioSource;
-			//ping.volume = ;
+		}
+		if(audioSource.clip.name == "proximityLoop"){
+			proximity = audioSource;
 		}
 		
  	}
@@ -124,11 +154,13 @@ function setUpAudio(){
 
 function init(){
  	callInit = false;
+ 	
+ 	speed = initialSpeed;
  	setUpAudio();
  	setSpeed();
  	setCameraHeight();
  	makeJoins();
- 	setLengthText();
+ //	setLengthText();
  	setDisplayLength();
  	rangeFinder();
 }
@@ -150,9 +182,12 @@ function makeJoins(){
 	var snakeSection:SnakeSection  = entry.Value;
 		
 		if(snakeSection.nextSectionId != -1){
-			snakeSection.conector.renderer.enabled = true;
+			snakeSection.joinVisible = true;
+			//snakeSection.conector.renderer.enabled = true;	
 		}
+	snakeSection.setSectionVisible(false,false);
 	}
+	snakeHead.setSectionVisible(true,true);
 }
 function setLengthText(){
 	lengthDisplayText.text = lengthDisplayNum.ToString();
@@ -189,9 +224,47 @@ function addSection(id:int):SnakeSection{
 	if(id == snakeLength -1){
 		snakeSection.nextSectionId = -1;
 	}
-		snakeSection.controler = this;
+		snakeSection.controller = this;
 		snakeParts.Add(id.ToString(),snakeSection);
 		return snakeSection;
+}
+
+function deleteSection(sectionId:int){
+	Debug.Log("Destoyed section: " + sectionId);
+	if( snakeParts[sectionId.ToString()] != null){
+		 snakeParts[sectionId.ToString()] = null;
+		 destroyedSectionCount++;
+		 if(destroyedSectionCount == snakeLength){
+		 	snakeDestroyed();
+		 }
+	 }
+}
+
+function snakeDestroyed(){
+	snakeTargetLength = lengthDisplayNum;
+	if(lives >0){
+		lives--;
+		
+		respawn();
+	}else{
+	respawn();
+	// gameManager.gameOver();
+	}
+}
+
+function respawn(){
+	//yield WaitForSeconds(5);
+	Debug.Log("respawn");
+	initialiseSnake();
+}
+
+function setRespawnVars(sectionPickUp:SectionPickUp){
+ 	spawnPoint.position = sectionPickUp.transform.position;
+}
+
+function setRespawnDirection(){
+	respawnDirection = snakeHead.transform.rotation;
+	Debug.Log("respawnDirection: " + respawnDirection);
 }
 
 function addPickUpSection(){
@@ -249,9 +322,15 @@ function getPreviousSection(id:int):SnakeSection{
 }
 
 function setSpeed(){
-	for(var entry:DictionaryEntry in snakeParts){
-	var snakeSection:SnakeSection  = entry.Value;
-			snakeSection.speed = speed;
+	if(alive == true){
+		for(var entry:DictionaryEntry in snakeParts){
+			var snakeSection:SnakeSection  = entry.Value;
+			if(snakeSection != null){
+				snakeSection.speed = speed;
+			}else{
+				return;
+			}
+		}
 	}
 }
 
@@ -283,21 +362,30 @@ function rangeFinder(){
 		if(snakeHead.range != -1){
 			makePing();
 		}else{
-		 rangeFinderDelay();
+			proximity.Stop();
+			rangeFinderDelay();
 		}
 	}
 }
 
 function rangeFinderDelay(){
- yield WaitForSeconds (1);
+	yield WaitForSeconds (0.5);
 	rangeFinder();
 }
 function makePing(){
 	if(alive){
-		ping.Play();
-		var delay:float = snakeHead.range/10;
-		yield WaitForSeconds (delay);
-		rangeFinder();
+		if(snakeHead.range < 3.5){
+			proximity.Play();
+			rangeFinderDelay();
+		}else{
+			proximity.Stop();
+			//var pingPitch:float = 1 +((1-(snakeHead.range/snakeHead.rangeDist)) *0.5);
+		//	ping.pitch = pingPitch;
+			ping.Play();
+			var delay:float = (snakeHead.range*snakeHead.range)/((snakeHead.rangeDist*snakeHead.rangeDist));
+			yield WaitForSeconds (delay);
+			rangeFinder();
+		}
 	}
 }
 
@@ -431,6 +519,17 @@ function handleInput():void{
  	if (horizontal < 0) {
   		nextDirection = 4;
  		//LEFT
+	}
+	
+	var r_vertical:float =Input.GetAxis("R_Vertical");
+	//Debug.Log("r_vertical: " + r_vertical);
+	
+	if (r_vertical ==1) {
+		adjustSpeed(1);
+	}
+	
+	if (r_vertical ==-1) {
+		adjustSpeed(-1);
 	}
 	
 	if (Input.GetKey(KeyCode.F)){

@@ -1,7 +1,7 @@
 #pragma strict
 
 @System.NonSerialized
-var controler:SnakeControler;
+var controller:SnakeController;
 
 
 @System.NonSerialized
@@ -67,6 +67,8 @@ private var wheelRadius:float = 0.272;
 var conector:Transform;
 private var join:Transform;
 private var rayProjectionPoint:Transform;
+private var leftRangeProjectionPoint:Transform;
+private var rightRangeProjectionPoint:Transform;
 private var conected:boolean = true;
 private var selfDestructSet:boolean = false;
 
@@ -82,7 +84,9 @@ var contact:boolean = true;
 var joinAttachmentPoint:Transform;
 
 private var detectDist:float = 1.3;
-private var rangeDist:float = 15;
+
+@System.NonSerialized
+var rangeDist:float = 15;
 
 var explosion:GameObject;
 
@@ -90,14 +94,23 @@ var explosion:GameObject;
 var isEnabled:boolean = false;
 
 private var addSectionOnUpdateNext:boolean = false;
-private var pickUpToDestroy:GameObject;
+//private var pickUpToDestroy:GameObject;
 
 var range:float;
 
+var leftRangeRayAdjustVec:Vector3= Vector3(-0.9,0,0);
+var rightRangeRayAdjustVec:Vector3= Vector3(0.9,0,0);
 
+
+//@System.NonSerialized
+var sectionVisible:boolean = false;
+var joinVisible:boolean = false;
+var forceFieldVisible:boolean = false;
+var passOnVisibilityOnUpdate:boolean = false;
 
 
 function Start(){
+	
 	explosion = Resources.Load("Detonator/Prefab/Detonator-Simple");
 	Body = transform.FindChild("Body").transform;
 	joinAttachmentPoint = transform.FindChild("Body/JoinAttachmentPoint").transform;
@@ -118,11 +131,28 @@ function Start(){
 	leftWheel.Rotate(Vector3(leftValue,0,0),Space.Self);
 	if(sectionId == 0){
 		rayProjectionPoint = transform.FindChild("Body/rayProjectionPoint").transform;
+		leftRangeProjectionPoint = transform.FindChild("Body/leftRangeProjectionPoint").transform;
+		rightRangeProjectionPoint = transform.FindChild("Body/rightRangeProjectionPoint").transform;
 	}
 	
 }
 
-
+function setSectionVisible(_visible:boolean,passOnVisibility){
+		passOnVisibilityOnUpdate = passOnVisibility;
+		sectionVisible = _visible;
+		var renderers = Body.gameObject.GetComponentsInChildren(Renderer);
+		for (var renderer : Renderer in renderers) {
+			renderer.enabled = sectionVisible;
+		}
+		var lights = Body.gameObject.GetComponentsInChildren(Light);
+		for (var lightComp : Light in lights) {
+			lightComp.enabled = sectionVisible;
+		}
+		if(sectionVisible == true){
+			forceField.renderer.enabled = forceFieldVisible;
+			conector.renderer.enabled = joinVisible;
+		}
+}
 
 function Update () {
 	if(isEnabled){
@@ -142,53 +172,89 @@ function Update () {
 					}
 				}
 			}
+			var hit1 : RaycastHit;
+			var range1:float = 1000000;
+			//Debug.DrawRay(leftRangeProjectionPoint.position,rayDirection*rangeDist,Color.green);
+			Physics.Raycast (leftRangeProjectionPoint.position,rayDirection, hit1, rangeDist);
+			if((hit1.collider != null)&&(hit1.collider.CompareTag("AddSectionPickUp") == false) ){
+					range1 = hit1.distance;
+				}else{
+					range1 = 1000000;
+			}
+				
+				
+			var hit2 : RaycastHit;
+			var range2:float = 1000000;
+		//	Debug.DrawRay(rightRangeProjectionPoint.position,rayDirection*rangeDist,Color.red);sectionVisible
+			Physics.Raycast (rightRangeProjectionPoint.position,rayDirection, hit2, rangeDist);
+				if((hit2.collider != null)&&(hit2.collider.CompareTag("AddSectionPickUp") == false) ){
+					range2 = hit2.distance;
+				}else{
+					range2 = 1000000;
+			}
 			
-			Physics.Raycast (rayProjectionPoint.position,rayDirection, hit, rangeDist);
-				if((hit.collider != null)&&(hit.collider.CompareTag("AddSectionPickUp") == false) ){
-					range = hit.distance;
+			var hit3 : RaycastHit;
+			var range3:float = 1000000;
+			//Debug.DrawRay(rayProjectionPoint.position,rayDirection*rangeDist,Color.blue);
+			Physics.Raycast (rayProjectionPoint.position,rayDirection, hit3, rangeDist);
+				if((hit3.collider != null)&&(hit3.collider.CompareTag("AddSectionPickUp") == false) ){
+					range3 = hit3.distance;
+				}else{
+					range3 = 1000000;
+			}
+			
+			var testRange: float = Mathf.Min(range1,range2,range3);
+			if(testRange < rangeDist){
+				range = testRange;
 				}else{
 					range = -1;
-				}
+			}
+			
 			
 	  	}	
 	}	
 }
 
 function OnTriggerEnter(other : Collider) {
+	
 	if(other.CompareTag("Terrain")){
 		contact = true;
 	}	
-	if(other.CompareTag("Deadly")){
-		if(selfDestructSet == false){
-			controler.alive = false;
-			collide();
-		}
-	}	
-	if(sectionId ==controler.snakeLength-1){
-		if(other.CompareTag("AddSectionPickUp")){
-		var sectionPickUp:SectionPickUp = other.gameObject.GetComponent(SectionPickUp);
-			if(sectionPickUp.deployed == false){
-				addSectionOnUpdateNext = true;	
-				sectionPickUp.deploySection();
-				pickUpToDestroy = other.gameObject;			
+	if(sectionVisible == true){
+		if(other.CompareTag("Deadly")){
+			if(selfDestructSet == false){
+				controller.alive = false;
+				collide();
 			}
-		}
-	}	
-	if(sectionId == 0){
-		if(other.CompareTag("AddSectionPickUp")){
-			sectionPickUp = other.gameObject.GetComponent(SectionPickUp);
-			if(sectionPickUp.isActive == false){
-				sectionPickUp.activate();
-				controler.incrementLengthDisplayNum();
-			}					
-		}
-	}	
-	//Debug.Log("OnTriggerEnter");
+		}	
+		if(sectionId ==controller.snakeLength-1){
+			if(other.CompareTag("AddSectionPickUp")){
+			var sectionPickUp:SectionPickUp = other.gameObject.GetComponent(SectionPickUp);
+				if(sectionPickUp.deployed == false){
+					addSectionOnUpdateNext = true;	
+					sectionPickUp.deploySection();
+					//controller.
+					//pickUpToDestroy = other.gameObject;			
+				}
+			}
+		}	
+		if(sectionId == 0){
+			if(other.CompareTag("AddSectionPickUp")){
+				sectionPickUp = other.gameObject.GetComponent(SectionPickUp);
+				if(sectionPickUp.isActive == false){
+					sectionPickUp.activate();
+					controller.incrementLengthDisplayNum();
+					controller.setRespawnVars(sectionPickUp);
+				}					
+			}
+		}	
+		//Debug.Log("OnTriggerEnter");
+	}
 }
 
 function callAddSection(){
 
-	controler.addPickUpSection();	
+	controller.addPickUpSection();	
 }
 
 function OnTriggerStay(other : Collider) {
@@ -202,15 +268,22 @@ function OnTriggerExit(other : Collider) {
 	if(other.CompareTag("Terrain")){
 		contact = false;
 	}	
-	//Debug.Log("OnTriggerExit");
+	if(sectionId == 0){
+			if(other.CompareTag("AddSectionPickUp")){
+				//set direction for spawnpoint	
+				controller.setRespawnDirection(other.);		
+			}
+		}	
 }
 
 
 
 function OnCollisionEnter(collision : Collision) {
-	if(selfDestructSet == false){
-		controler.alive = false;
-		collide();
+	if(sectionVisible == true){
+		if(selfDestructSet == false){
+			controller.alive = false;
+			collide();
+		}
 	}
 }
 
@@ -229,11 +302,15 @@ function collide(){
 		Instantiate(explosion, pos, rot);	
 		conected = false;
 		yield WaitForSeconds(0.25);
-		Destroy (gameObject,0.75);
+		killSection(0.75);
 		destroyNextSection();
 	}
 }
-
+function killSection(delay:float){
+	yield WaitForSeconds(delay);
+	controller.deleteSection(sectionId);
+	Destroy(gameObject);
+}
 function triggerExplosion(chainReation:boolean){
 	if(isEnabled){
 		isEnabled = false;
@@ -260,14 +337,14 @@ function explode(){
 		var pos : Vector3 = transform.position;
 		Instantiate(explosion, pos, rot);
 		conected = false;
-		Destroy (gameObject,1);
+		killSection(1);
 	}
 }
 
 
 function destroyNextSection(){
 	if(nextSectionId != -1){
-		var nextSection = controler.getSection(nextSectionId);
+		var nextSection = controller.getSection(nextSectionId);
 		if(nextSection != null){
 	 		nextSection.triggerExplosion(true);
 	 	}
@@ -306,10 +383,15 @@ function setMode(newMode:String):void{
 
 function UpdateNextInChain () {
 	if(nextSectionId != -1){
-		var nextSection = controler.getSection(nextSectionId);
+		var nextSection = controller.getSection(nextSectionId);
 		
 		if(nextSection != null){
 			nextSection.SetMovement(passOnDirection);
+			if(passOnVisibilityOnUpdate == true){
+				passOnVisibilityOnUpdate = false;
+				yield;
+				nextSection.setSectionVisible(sectionVisible,true);
+			}
 		}else{
 			Debug.Log("UpdateNextInChain nextSection == null  section: " + sectionId + ", nextSectionId: " + nextSectionId);
 		}
@@ -382,7 +464,7 @@ function move():void{
 	if(moveTotal == 0){
 		//if(sectionId == 0){
 	 		if(direction != 0){
-	 			controler.playTurnAudio();
+	 			controller.playTurnAudio();
 	 		}
 	 	//}
 	}
@@ -459,7 +541,7 @@ function move():void{
 	
 	
 	if(nextSectionId != -1){
-		var nextSection = controler.getSection(nextSectionId);
+		var nextSection = controller.getSection(nextSectionId);
 		if(nextSection != null){
 			if(conected){
 			if(nextSection.joinAttachmentPoint){
@@ -486,7 +568,6 @@ function move():void{
 		if(addSectionOnUpdateNext){
 			addSectionOnUpdateNext = false;
 			callAddSection();
-			//Destroy(pickUpToDestroy);
 		}
 		newDirection = true;
 		UpdateNextInChain();	
