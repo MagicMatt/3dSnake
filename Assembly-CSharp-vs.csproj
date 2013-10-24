@@ -57,8 +57,10 @@
      <Compile Include="Assets\Detonator Explosion Framework\System\DetonatorSound.cs" />
      <Compile Include="Assets\Detonator Explosion Framework\System\DetonatorSparks.cs" />
      <Compile Include="Assets\Detonator Explosion Framework\System\DetonatorSpray.cs" />
+     <None Include="Assets\Shaders\cheapForceField.shader" />
      <None Include="Assets\Shaders\ForceField.shader" />
      <None Include="Assets\Resources\Detonator\Textures\HeatDistort.shader" />
+     <None Include="Assets\Shaders\forceField3.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

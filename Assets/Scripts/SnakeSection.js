@@ -39,7 +39,7 @@ var passOnDirection: int = 0;
 @System.NonSerialized
 var speed: float = 0;
 
-@System.NonSerialized
+//@System.NonSerialized
 var Body: Transform;
 
 //@System.NonSerialized
@@ -80,6 +80,9 @@ var forceFieldMaterial:Material;
 
 @System.NonSerialized
 var contact:boolean = true;
+
+@System.NonSerialized
+var contactMadeThisFrame:boolean = false;
 
 var joinAttachmentPoint:Transform;
 
@@ -154,8 +157,24 @@ function setSectionVisible(_visible:boolean,passOnVisibility){
 		}
 }
 
+function setForceFieldVisible(_forceFieldVisible:boolean){
+	forceFieldVisible = _forceFieldVisible;
+	if(sectionVisible == true){
+		forceField.renderer.enabled = forceFieldVisible;
+	}
+}
+
+function getContact():boolean{
+	if(sectionVisible == false){
+		return true;
+	}else{
+		return contact;
+	}
+}
+
 function Update () {
 	if(isEnabled){
+	contactMadeThisFrame = false;
 		move();
 		if(sectionId == 0){
 			var rayDirection:Vector3;
@@ -219,6 +238,7 @@ function OnTriggerEnter(other : Collider) {
 	
 	if(other.CompareTag("Terrain")){
 		contact = true;
+		contactMadeThisFrame = true;
 	}	
 	if(sectionVisible == true){
 		if(other.CompareTag("Deadly")){
@@ -260,18 +280,29 @@ function callAddSection(){
 function OnTriggerStay(other : Collider) {
 	if(other.CompareTag("Terrain")){
 		contact = true;
+		contactMadeThisFrame = true;
 	}	
 //	Debug.Log("OnTriggerStay");
 }
 
 function OnTriggerExit(other : Collider) {
 	if(other.CompareTag("Terrain")){
-		contact = false;
+		if(contactMadeThisFrame == false){
+			contact = false;
+		}
 	}	
 	if(sectionId == 0){
 			if(other.CompareTag("AddSectionPickUp")){
 				//set direction for spawnpoint	
-				controller.setRespawnDirection(other.);		
+				var sectionPickUp:SectionPickUp = other.gameObject.GetComponent(SectionPickUp);
+				if(sectionPickUp.deployed == false){
+					var respawnRotation = sectionPickUp.checkSpawnRotation(transform.rotation);
+					controller.setRespawnDirection(respawnRotation);
+				}		
+			}
+			
+			if(other.CompareTag("PowerSphere")){
+				Destroy(other.gameObject);
 			}
 		}	
 }
@@ -297,13 +328,15 @@ function fall(){
 
 function collide(){	
 	if(explosion){
-		var rot : Quaternion = transform.rotation;
-		var pos : Vector3 = transform.position;
-		Instantiate(explosion, pos, rot);	
-		conected = false;
-		yield WaitForSeconds(0.25);
-		killSection(0.75);
-		destroyNextSection();
+		
+			var rot : Quaternion = transform.rotation;
+			var pos : Vector3 = transform.position;
+			Instantiate(explosion, pos, rot);	
+			conected = false;
+			yield WaitForSeconds(0.25);
+			killSection(0.75);
+			destroyNextSection();
+	
 	}
 }
 function killSection(delay:float){
@@ -313,12 +346,23 @@ function killSection(delay:float){
 }
 function triggerExplosion(chainReation:boolean){
 	if(isEnabled){
-		isEnabled = false;
-		explode();
-		if(chainReation == true){
-			yield WaitForSeconds(0.25);
+		if(sectionVisible == true){
+			isEnabled = false;
+			explode();
+			if(chainReation == true){
+				if(sectionId < 10){
+					yield WaitForSeconds(0.25);
+				}
 			destroyNextSection();
+			}
+			
+		}else{
+			killSection(0);
+			if(chainReation == true){
+				destroyNextSection();
+			}
 		}
+		
 	}
 }
 
@@ -326,8 +370,12 @@ function selfDestruct(){
 	if(isEnabled){
 		isEnabled = false;
 		selfDestructSet = true;
-		yield WaitForSeconds(Random.Range(2.5,4));
-	explode();
+		if(sectionVisible == true){
+			yield WaitForSeconds(Random.Range(2.5,4));
+			explode();
+		}else{
+			killSection(0);
+		}
 	}
 }
 
@@ -340,7 +388,7 @@ function explode(){
 		killSection(1);
 	}
 }
-
+	
 
 function destroyNextSection(){
 	if(nextSectionId != -1){

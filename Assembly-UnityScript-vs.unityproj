@@ -57,8 +57,11 @@
      <Compile Include="Assets\Scripts\SnakeSection.js" />
      <Compile Include="Assets\Scripts\Splash.js" />
      <Compile Include="Assets\Scripts\StatusBar.js" />
+     <Compile Include="Assets\Scripts\rotateObject.js" />
+     <None Include="Assets\Shaders\cheapForceField.shader" />
      <None Include="Assets\Shaders\ForceField.shader" />
      <None Include="Assets\Resources\Detonator\Textures\HeatDistort.shader" />
+     <None Include="Assets\Shaders\forceField3.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
