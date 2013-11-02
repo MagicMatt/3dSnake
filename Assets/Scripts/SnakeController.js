@@ -5,7 +5,7 @@
 var initialSnakeLength: float = 10;
 var initialSpeed:float = 2;
 var minSpeed: float = 1;
-var maxSpeed: float = 20;
+var maxSpeed: float = 10;
 var speedIncrement: float = 0.2;
 var heightDamping:float = 0.5;
 var cameraHeight:float = 0;
@@ -97,6 +97,7 @@ function Start(){
 }
 
 function initialiseSnake(){
+	Debug.Log("--------------------------SnakeController initialiseSnake()----------------------------");
 	stopActiveSecionPickUps();
 	snakeParts = new Hashtable();
 	snakeLength = 0;
@@ -104,31 +105,25 @@ function initialiseSnake(){
 	nextDirection = 0;
 	for(var i:int =0; i < snakeTargetLength;i++){
 		var snakeSection:SnakeSection = addSection(i);
-		//if(i == 0){
-				snakeSection.gameObject.transform.rotation = respawnDirection;
-				//snakeSection.gameObject.transform.position =Vector3 (spawnPoint.position.x, 0.5, spawnPoint.position.z -(i * snakeSection.sectionLength));
-				snakeSection.gameObject.transform.position =spawnPoint.position;
-				snakeSection.gameObject.transform.Translate((-i * snakeSection.sectionLength) * Vector3.forward,Space.Self);
-				snakeSection.gameObject.transform.Translate((-0.5) * transform.up,Space.Self);
-				snakeSection.speed = speed;
-				snakeSection.direction=currentDirection;
-	/*	}else{
-				snakeSection.gameObject.transform.rotation = respawnDirection;
-				snakeSection.gameObject.transform.position =Vector3 (spawnPoint.position.x, 0.5, spawnPoint.position.z -(i * snakeSection.sectionLength));
-				snakeSection.speed = speed;
-				snakeSection.direction=currentDirection;
-		}*/
+		snakeSection.gameObject.transform.rotation = respawnDirection;
+		snakeSection.gameObject.transform.position =spawnPoint.position;
+		snakeSection.gameObject.transform.Translate((-i * snakeSection.sectionLength) * Vector3.forward,Space.Self);
+		snakeSection.gameObject.transform.Translate((-0.5) * transform.up,Space.Self);
+		snakeSection.speed = speed;
+		snakeSection.direction=currentDirection;
+	
 		if(i == 0){
 			snakeHead = snakeSection;
+			Debug.Log("snakeHead: " + snakeHead);
 		}
 		
 		if(i == 0){
 			Camera.main.GetComponent(SmoothLookAt).target = snakeSection.transform.FindChild("Body").transform;
-			cameraSphere.GetComponent(AntiClippingCamera).target = snakeSection.transform.FindChild("Body").transform;
+			cameraSphere.GetComponent(AntiClippingCamera).setTarget(snakeSection.transform.FindChild("Body").transform);
 		
 		}
 	}
-	
+
 	
 
 	alive = true;
@@ -137,7 +132,7 @@ function initialiseSnake(){
 		snakeSection.isEnabled = true;
 	}
 	callInit = true;
-	
+	Debug.Log("--------------------------SnakeController initialiseSnake() END----------------------------");
 }
 
 function setUpAudio(){
@@ -170,17 +165,22 @@ function setUpAudio(){
  }
 
 function init(){
+Debug.Log("Snake Controller init()");
  	callInit = false;
  	
  	speed = initialSpeed;
- 	cameraHeight = speed-minSpeed;
+ 	setCameraHeight();
  	setUpAudio();
  	setSpeed();
- 	setCameraHeight();
+ 	setCameraToHeight();
  	makeJoins();
  //	setLengthText();
  	setDisplayLength();
  	rangeFinder();
+}
+
+function setCameraHeight(){
+	cameraHeight = 0;//speed-minSpeed;
 }
 
 function setDisplayLength(){
@@ -195,16 +195,20 @@ function incrementLengthDisplayNum(){
  
 
 function makeJoins(){
-	Debug.Log("makeJoins");
-	for(var entry:DictionaryEntry in snakeParts){
-	var snakeSection:SnakeSection  = entry.Value;
-		
+	//Debug.Log("---------------------makeJoins-----------------------------");
+	for(var i:int =0; i < snakeTargetLength;i++){
+		var snakeSection:SnakeSection = snakeParts[i.ToString()];
+	Debug.Log("makeJoins snakeSection: " + snakeSection +", id: " + i);
 		if(snakeSection.nextSectionId != -1){
 			snakeSection.joinVisible = true;
 		}
+		snakeSection.setSpawnFieldVisible(false);
 		snakeSection.setSectionVisible(false,false);
+	
 	}
+
 	snakeHead.setSectionVisible(true,true);
+	//Debug.Log("---------------------makeJoins End-----------------------------");
 }
 
 function setLengthText(){
@@ -225,10 +229,6 @@ function addSection(id:int):SnakeSection{
 	}
 	snakeSection.sectionId = id;
 	
-	
-		
-		
-		
 	if(id > 0){
 	
 		var lastSection:SnakeSection = getPreviousSection(id);
@@ -236,7 +236,7 @@ function addSection(id:int):SnakeSection{
 			lastSection.nextSectionId = snakeSection.sectionId;
 			
 		}
-		Debug.Log("link to previous section, sectionId: " + id +", PreviousSectionId: " + lastSection.sectionId);
+		//Debug.Log("link to previous section, sectionId: " + id +", PreviousSectionId: " + lastSection.sectionId);
 	}
 	
 	if(id == snakeLength -1){
@@ -244,21 +244,40 @@ function addSection(id:int):SnakeSection{
 	}
 		snakeSection.controller = this;
 		snakeParts.Add(id.ToString(),snakeSection);
+	//	snakeParts[id.ToString] = snakeSection;
+		//Debug.Log("addSection snakeSection id: " + id);
+		var testSnakeSection:SnakeSection = snakeParts[id.ToString()];
+		//Debug.Log("addSection snakeSection array check: " + testSnakeSection);
 		return snakeSection;
 }
 
 function deleteSection(sectionId:int){
-	Debug.Log("Destoyed section: " + sectionId);
+	//Debug.Log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!SnakeController deleteSection() sectionId: " + sectionId);	
 	if( snakeParts[sectionId.ToString()] != null){
 		 snakeParts[sectionId.ToString()] = null;
-		 destroyedSectionCount++;
+		/* destroyedSectionCount++;
 		 if(destroyedSectionCount == snakeLength){
 		 	snakeDestroyed();
 		 }
+		 */
+		var snakeDestructionComplete:boolean = true;
+		for(var i:int =0; i < snakeLength;i++){
+			var snakeSection:SnakeSection = snakeParts[i.ToString()];
+			if(snakeSection){
+				snakeDestructionComplete = false;
+			}
+		}
+		if(snakeDestructionComplete){
+			snakeDestroyed();
+		}
+			
+	 }else{
+	 	Debug.Log("Already Deleted!!!!!!!!!!!!!!!!!!!!SnakeController deleteSection() sectionId: " + sectionId);	
 	 }
 }
 
 function snakeDestroyed(){
+	Debug.Log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!SnakeController snakeDestroyed()!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 	snakeTargetLength = lengthDisplayNum;
 	if(lives >0){
 		lives--;
@@ -271,6 +290,7 @@ function snakeDestroyed(){
 }
 
 function respawn(){
+	Debug.Log("SnakeController respawn(), Time: " + Time.realtimeSinceStartup);
 	//yield WaitForSeconds(5);
 	Debug.Log("respawn");
 	initialiseSnake();
@@ -295,7 +315,10 @@ function addPickUpSection(){
 	if(lastSection != null){
 		snakeSection.gameObject.transform.position = lastSection.gameObject.transform.position;
 		snakeSection.gameObject.transform.rotation = lastSection.gameObject.transform.rotation;
-		snakeSection.gameObject.transform.Translate(-snakeSection.sectionLength * transform.forward,Space.Self);
+		var body:Transform = snakeSection.gameObject.transform.FindChild("Body").transform;
+		body.position = lastSection.Body.position;
+		body.rotation = lastSection.Body.rotation;
+		snakeSection.gameObject.transform.Translate(-snakeSection.sectionLength * lastSection.gameObject.transform.forward,Space.World);
 		snakeSection.stepCount = lastSection.stepCount;
 		snakeSection.direction = lastSection.direction;
 		snakeSection.nextDirection = lastSection.nextDirection;
@@ -306,7 +329,12 @@ function addPickUpSection(){
 	}
 	snakeSection.speed = speed;
 	snakeSection.isEnabled = true;
+	snakeSection.setSpawnFieldVisible(true);
+	incrementLengthDisplayNum();
 	//Time.timeScale = 0;
+	
+	//snakeSection.isEnabled = false;
+	//lastSection.isEnabled = false;
 }
 
 
@@ -318,7 +346,7 @@ function getSection(id:int):SnakeSection{
 	}
 	
 	if(section == null){
-		Debug.Log("getSection returns null for: " + id);
+		Debug.Log("*********************************************getSection returns null for: " + id);
 	}
 	return section;
 }
@@ -329,7 +357,9 @@ function getNextSection(id:int):SnakeSection{
 		if(sectionNum < snakeLength){
 			section =  snakeParts[sectionNum.ToString()];
 		}
-
+	if(section == null){
+		Debug.Log("*********************************************getNextSection returns null for: " + id);
+	}
 		
 	return section;
 }
@@ -339,6 +369,9 @@ function getPreviousSection(id:int):SnakeSection{
 	var section:SnakeSection;
 	if(sectionNum >= 0){
 		section =  snakeParts[sectionNum.ToString()];
+	}
+	if(section == null){
+		Debug.Log("*********************************************getPreviousSection returns null for: " + id);
 	}
 	return section;
 }
@@ -373,7 +406,7 @@ function Update () {
 		}
 		
 		checkSectionContact();
-		setCameraHeight();
+		setCameraToHeight();
 		updateAudio();
 		
 	}
@@ -466,60 +499,76 @@ function setForceFieldColor(){
 }
 
 function checkSectionContact(){
- 	contactCount = 0;
- 	stableNum = Mathf.Floor(snakeLength/2);
- 	 //Debug.Log("stableNum: " + stableNum);
-	for(var i:int = 0; i < snakeLength; i++){
-		var section:SnakeSection = snakeParts[i.ToString()] as SnakeSection;
-		if(section != null){
-			if(section.getContact() == true){
-				contactCount++;
-				section.setForceFieldVisible(false);
-			}else{
-				section.setForceFieldVisible(true);
-			}
-			
-		}
-	}
-	
-
-		setForceFieldColor();
-	
-//	Debug.Log("contactCount: " + contactCount);
-	if(contactCount < stableNum){
-	setForceFieldOff();
-		for(var j:int = 0; j < snakeLength; j++){
-			section = snakeParts[j.ToString()];
+	if(alive == true){
+	 	contactCount = 0;
+	 	stableNum = Mathf.Floor(snakeLength/2);
+	 	 //Debug.Log("stableNum: " + stableNum);
+		for(var i:int = 0; i < snakeLength; i++){
+			var section:SnakeSection = snakeParts[i.ToString()] as SnakeSection;
 			if(section != null){
-				if(section.contact == false){
-					section.fall();
+				if(section.getContact() == true){
+					contactCount++;
+					section.setForceFieldVisible(false);
 				}else{
-					section.selfDestruct();
+					section.setForceFieldVisible(true);
+				}
+				
+			}
+		}
+		
+	
+			setForceFieldColor();
+		
+	//	Debug.Log("contactCount: " + contactCount);
+		if(contactCount < stableNum){
+		setForceFieldOff();
+			for(var j:int = 0; j < snakeLength; j++){
+				section = snakeParts[j.ToString()];
+				if(section != null){
+					if(section.contact == false){
+						section.fall();
+					}else{
+						section.selfDestruct();
+					}
 				}
 			}
+		 Debug.Log("NOT ENOUGH CONTACT");
+		 //snakeParts["0"].explode(false);
+		kill();
 		}
-	 Debug.Log("NOT ENOUGH CONTACT");
-	 //snakeParts["0"].explode(false);
-	kill();
-	}
-	
-	if(contactCount < snakeLength){
-		if(forceFieldSound.isPlaying== false){
-			forceFieldSound.Play();
+		
+		if(contactCount < snakeLength){
+			if(forceFieldSound.isPlaying== false){
+				forceFieldSound.Play();
+			}
+			forceFieldSound.volume = (1-((contactCount-stableNum)/(snakeLength-stableNum)))*2;
+		}else{
+			forceFieldSound.Stop();
 		}
-		forceFieldSound.volume = (1-((contactCount-stableNum)/(snakeLength-stableNum)))*2;
-	}else{
-		forceFieldSound.Stop();
-	}
-	
-	if(statusBar){
-		statusBar.displayValue = 1-(contactCount-stableNum)/(snakeLength-stableNum);
+		
+		if(statusBar){
+			statusBar.displayValue = 1-(contactCount-stableNum)/(snakeLength-stableNum);
+		}
 	}
 }
 
 function kill(){
+	// Debug.Log("KILL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
  	alive = false;
 	setForceFieldOff();
+	if(proximity){
+		proximity.Stop();
+	}
+	stopSnake();
+}
+
+function stopSnake(){
+	for(var j:int = 0; j < snakeLength; j++){
+		var section:SnakeSection  = snakeParts[j.ToString()];
+		if(section != null){
+			section.setMode("stop");	
+		}
+	}
 }
 function stopActiveSecionPickUps(){
 	for(var i:int = 0; i < activeSectionPickUps.length; i++){
@@ -534,11 +583,10 @@ function adjustSpeed(dir:int){
 	speed+=increment;
 	speed = Mathf.Clamp(speed,minSpeed,maxSpeed);
 	setSpeed();
-	cameraHeight = speed-minSpeed;
-	//setCameraHeight();
+	setCameraHeight();
 }
 
-function setCameraHeight(){
+function setCameraToHeight(){
 	Camera.main.transform.localPosition.y = Mathf.Lerp (Camera.main.transform.localPosition.y, cameraHeight, heightDamping * Time.deltaTime);;
 }
 
@@ -556,8 +604,10 @@ function handleInput():void{
 		//RIGHT
  	}
 	if (vertical < 0) {
-  		nextDirection = 3;
-  		//DOWN
+		if(snakeHead.getContact() == false){
+	  		nextDirection = 3;
+	  		//DOWN
+	 	}
  	}
  	if (horizontal < 0) {
   		nextDirection = 4;

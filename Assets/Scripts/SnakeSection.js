@@ -1,4 +1,8 @@
 #pragma strict
+//Debugging
+var framesBetweenUpdates:int = 0;
+var debugFrameCount:int = 0;
+///
 
 @System.NonSerialized
 var controller:SnakeController;
@@ -36,7 +40,7 @@ var nextDirection: int = 0;
 var passOnDirection: int = 0;
 
 
-@System.NonSerialized
+//@System.NonSerialized
 var speed: float = 0;
 
 //@System.NonSerialized
@@ -72,8 +76,15 @@ private var rightRangeProjectionPoint:Transform;
 private var conected:boolean = true;
 private var selfDestructSet:boolean = false;
 
+private var updateNext:boolean;
+
+
 //@System.NonSerialized
 var forceField:Transform;
+
+
+//@System.NonSerialized
+var spawnForceField:Transform;
 
 //@System.NonSerialized
 var forceFieldMaterial:Material;
@@ -104,12 +115,22 @@ var range:float;
 var leftRangeRayAdjustVec:Vector3= Vector3(-0.9,0,0);
 var rightRangeRayAdjustVec:Vector3= Vector3(0.9,0,0);
 
+var myExplosion:GameObject;
+
 
 //@System.NonSerialized
 var sectionVisible:boolean = false;
 var joinVisible:boolean = false;
 var forceFieldVisible:boolean = false;
+var spawnFieldVisible:boolean = false;
 var passOnVisibilityOnUpdate:boolean = false;
+
+var killed:boolean = false;
+
+@System.NonSerialized
+var spawning:boolean = false;
+var spawnScale:float = 0;
+
 
 
 function Start(){
@@ -121,6 +142,8 @@ function Start(){
 	conector = transform.FindChild("Body/JoinContainer/Conector").transform;
 	Debug.Log("section " + sectionId + " conector: " + conector);
 	conector.renderer.enabled = false;
+	
+	
 	
 	forceField = transform.FindChild("Body/ForceField").transform;
 	forceFieldMaterial = forceField.gameObject.renderer.material;
@@ -136,11 +159,17 @@ function Start(){
 		rayProjectionPoint = transform.FindChild("Body/rayProjectionPoint").transform;
 		leftRangeProjectionPoint = transform.FindChild("Body/leftRangeProjectionPoint").transform;
 		rightRangeProjectionPoint = transform.FindChild("Body/rightRangeProjectionPoint").transform;
+	}else{
+		spawnForceField = transform.FindChild("Body/SpawnForceField").transform;
+		Body.localScale = Vector3.zero;
+		spawning = true;
 	}
 	
 }
 
-function setSectionVisible(_visible:boolean,passOnVisibility){
+function setSectionVisible(_visible:boolean,passOnVisibility:boolean){
+
+		Debug.Log("SnakeSection setSectionVisible id: " + sectionId + "_visible: " + _visible);
 		passOnVisibilityOnUpdate = passOnVisibility;
 		sectionVisible = _visible;
 		var renderers = Body.gameObject.GetComponentsInChildren(Renderer);
@@ -151,7 +180,15 @@ function setSectionVisible(_visible:boolean,passOnVisibility){
 		for (var lightComp : Light in lights) {
 			lightComp.enabled = sectionVisible;
 		}
+			var colliders = Body.gameObject.GetComponentsInChildren(Collider);
+		for (var colliderComp : Collider in colliders) {
+			colliderComp.enabled = sectionVisible;
+		}
+		
 		if(sectionVisible == true){
+			if(sectionId != 0){
+				setSpawnFieldVisible(spawnFieldVisible);
+		}
 			forceField.renderer.enabled = forceFieldVisible;
 			conector.renderer.enabled = joinVisible;
 		}
@@ -164,6 +201,21 @@ function setForceFieldVisible(_forceFieldVisible:boolean){
 	}
 }
 
+function setSpawnFieldVisible(_spawnFieldVisible:boolean){
+	//Debug.Log("setSpawnFieldVisible: " + _spawnFieldVisible);
+	spawnFieldVisible = _spawnFieldVisible;
+	if(sectionVisible == true){
+		var renderers = spawnForceField.gameObject.GetComponentsInChildren(Renderer);
+		//Debug.Log("spawnForceField renderers.length: " + renderers.length);
+		for (var renderer : Renderer in renderers) {
+		//Debug.Log("spawnForceField renderer: " + renderer);
+			renderer.enabled = _spawnFieldVisible;
+		}
+		
+		
+	}
+}
+
 function getContact():boolean{
 	if(sectionVisible == false){
 		return true;
@@ -172,10 +224,12 @@ function getContact():boolean{
 	}
 }
 
-function Update () {
+function FixedUpdate () {
 	if(isEnabled){
-	contactMadeThisFrame = false;
-		move();
+		contactMadeThisFrame = false;
+		if(mode != "stop"){
+			move();
+		}
 		if(sectionId == 0){
 			var rayDirection:Vector3;
 			rayDirection = Body.forward;
@@ -231,6 +285,14 @@ function Update () {
 			
 			
 	  	}	
+	  	if(spawning == true){
+		  	spawnScale = moveTotal/sectionLength;
+			if(updateNext == true){
+				spawnScale = 1;
+				spawning = false;
+			}
+		  	Body.localScale = Vector3(spawnScale,spawnScale,spawnScale);
+	  	}
 	}	
 }
 
@@ -268,12 +330,16 @@ function OnTriggerEnter(other : Collider) {
 				}					
 			}
 		}	
+		if(other.CompareTag("PowerSphere")){
+				var powerSphere:PowerSphere = other.gameObject.GetComponent(PowerSphere);
+				powerSphere.explode();
+				addSectionOnUpdateNext = true;	
+		}
 		//Debug.Log("OnTriggerEnter");
 	}
 }
 
 function callAddSection(){
-
 	controller.addPickUpSection();	
 }
 
@@ -301,15 +367,14 @@ function OnTriggerExit(other : Collider) {
 				}		
 			}
 			
-			if(other.CompareTag("PowerSphere")){
-				Destroy(other.gameObject);
-			}
+			
 		}	
 }
 
 
 
 function OnCollisionEnter(collision : Collision) {
+	
 	if(sectionVisible == true){
 		if(selfDestructSet == false){
 			controller.alive = false;
@@ -328,22 +393,35 @@ function fall(){
 
 function collide(){	
 	if(explosion){
-		
+		if(enabled){
+			isEnabled = false;
+			if(sectionId ==0){
+				rigidbody.isKinematic = true;
+			}	
 			var rot : Quaternion = transform.rotation;
 			var pos : Vector3 = transform.position;
-			Instantiate(explosion, pos, rot);	
+			myExplosion = Instantiate(explosion, pos, rot);	
 			conected = false;
+			controller.kill();
 			yield WaitForSeconds(0.25);
-			killSection(0.75);
 			destroyNextSection();
-	
+			killSection(0.75);
+		}
 	}
 }
+
 function killSection(delay:float){
-	yield WaitForSeconds(delay);
-	controller.deleteSection(sectionId);
-	Destroy(gameObject);
+	if(!killed){
+		yield WaitForSeconds(delay);
+		if(myExplosion){
+			Destroy(myExplosion);
+		}
+		controller.deleteSection(sectionId);
+		Destroy(gameObject);
+		killed = true;
+	}
 }
+
 function triggerExplosion(chainReation:boolean){
 	if(isEnabled){
 		if(sectionVisible == true){
@@ -357,10 +435,11 @@ function triggerExplosion(chainReation:boolean){
 			}
 			
 		}else{
-			killSection(0);
+		
 			if(chainReation == true){
 				destroyNextSection();
 			}
+			killSection(0);
 		}
 		
 	}
@@ -381,6 +460,9 @@ function selfDestruct(){
 
 function explode(){
 	if(explosion){
+	if(sectionId ==0){
+			rigidbody.isKinematic = true;
+	}
 		var rot : Quaternion = transform.rotation;
 		var pos : Vector3 = transform.position;
 		Instantiate(explosion, pos, rot);
@@ -408,24 +490,28 @@ function setMode(newMode:String):void{
 
 	mode = newMode;
 	pivotPos = Vector3.zero;
+	
+	if(mode != "stop"){
  		
-	if(mode == "turnUp"){
-		pivotPos.y = 0.5 * sectionHeight;
- 		pivotPos.z = -0.5 * sectionLength;
- 	}
- 	if(mode == "turnDown"){
-		pivotPos.y = -0.5 * sectionHeight;
- 		pivotPos.z = -0.5 * sectionLength;
- 	}
- 	
- 	if(mode == "turnRight"){
-		pivotPos.x = 0.5 * sectionWidth;
- 		pivotPos.z = -0.5 * sectionLength;
- 	}
- 	
- 	if(mode == "turnLeft"){
-		pivotPos.x = -0.5* sectionWidth;
- 		pivotPos.z = -0.5 * sectionLength;
+		if(mode == "turnUp"){
+			pivotPos.y = 0.5 * sectionHeight;
+	 		pivotPos.z = -0.5 * sectionLength;
+	 	}
+	 	if(mode == "turnDown"){
+			pivotPos.y = -0.5 * sectionHeight;
+	 		pivotPos.z = -0.5 * sectionLength;
+	 	}
+	 	
+	 	if(mode == "turnRight"){
+			pivotPos.x = 0.5 * sectionWidth;
+	 		pivotPos.z = -0.5 * sectionLength;
+	 	}
+	 	
+	 	if(mode == "turnLeft"){
+			pivotPos.x = -0.5* sectionWidth;
+	 		pivotPos.z = -0.5 * sectionLength;
+	 	}
+	 	
  	}
 }
 
@@ -435,13 +521,14 @@ function UpdateNextInChain () {
 		
 		if(nextSection != null){
 			nextSection.SetMovement(passOnDirection);
+		//	Debug.Log("UpdateNextInChain sectionId: " + sectionId + ", nextSectionId: " + nextSectionId + ", passOnDirection: " + passOnDirection);
 			if(passOnVisibilityOnUpdate == true){
 				passOnVisibilityOnUpdate = false;
 				yield;
 				nextSection.setSectionVisible(sectionVisible,true);
 			}
 		}else{
-			Debug.Log("UpdateNextInChain nextSection == null  section: " + sectionId + ", nextSectionId: " + nextSectionId);
+			Debug.Log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!UpdateNextInChain nextSection == null  section: " + sectionId + ", nextSectionId: " + nextSectionId);
 		}
 	}
 }
@@ -450,16 +537,24 @@ function UpdateNextInChain () {
 function moveForwards():boolean{
 	var callUpdateNext:boolean = false;
 	var moveDist:float = (speed*Time.deltaTime);
-	if(moveTotal + moveDist > sectionLength){ 
-		moveDist = sectionLength - moveTotal;
+	if(moveTotal + moveDist >= sectionLength){ 
+		var correctionDist:float = sectionLength - moveTotal;
 		callUpdateNext = true;
+		if(correctionDist != 0){
+			//Debug.Log("deltaTime: " + Time.deltaTime + ", Correct foward move by: "+ correctionDist + ", sectionId: " + sectionId + " moveDist: " + moveDist + " moveTotal: " + moveTotal);
+		}
+		moveDist = correctionDist;
 	}
 	moveTotal += moveDist;
 	transform.Translate(moveDist * transform.forward,Space.World);
 	
+	debugFrameCount ++;
 	if(callUpdateNext){
 		moveTotal = 0;
+		framesBetweenUpdates = debugFrameCount;
+		debugFrameCount = 0;
 	}
+	
 	
 	var wheelRotation:float = (moveDist/(2*Mathf.PI * wheelRadius)) * 360;
 	rightWheel.Rotate(Vector3(wheelRotation,0,0),Space.Self);
@@ -470,12 +565,12 @@ function moveForwards():boolean{
 	return callUpdateNext;
 }
 
-function move():void{
+function move(){
 	 
 
 	var DirectionSet:boolean = false;
 	if(newDirection){
-	newDirection = false;
+		newDirection = false;
 		direction = nextDirection;
 		nextDirection = 0;
 		passOnDirection = direction;
@@ -510,17 +605,15 @@ function move():void{
 	
 //Debug.Log("move updateNext: " + updateNext + ", sectionId: " + sectionId);
 	if(moveTotal == 0){
-		//if(sectionId == 0){
-	 		if(direction != 0){
-	 			controller.playTurnAudio();
-	 		}
-	 	//}
+	 	if(direction != 0){
+	 		controller.playTurnAudio();
+	 	}
 	}
 	
 	
 	var turnStep:float = (turnAngle*speed) * Time.deltaTime;
 	
-	var updateNext:boolean = false;
+	updateNext = false;
 	if(mode == "forward"){
 		updateNext = moveForwards();
 	}
@@ -591,34 +684,43 @@ function move():void{
 	if(nextSectionId != -1){
 		var nextSection = controller.getSection(nextSectionId);
 		if(nextSection != null){
-			if(conected){
-			if(nextSection.joinAttachmentPoint){
-					join.LookAt(nextSection.joinAttachmentPoint);
-					if(nextSection.joinAttachmentPoint ==null){
-						Debug.Log("joinAttachmentPoint =null on section: " + nextSection.sectionId);
-					}
-					var joinLength:float =  Vector3.Distance(join.position,nextSection.joinAttachmentPoint.position);
-					join.localScale.z = joinLength +0.2;
-					var joinWidthMax :float = 1;
-					var joinWidth =(0.8/joinLength)*0.75;
-						if(joinWidth > joinWidthMax){
-							joinWidth = joinWidthMax;
+		if(controller.alive == true){
+				if(conected){
+					if(nextSection.joinAttachmentPoint){
+						join.LookAt(nextSection.joinAttachmentPoint);
+						if(nextSection.joinAttachmentPoint ==null){
+							Debug.Log("joinAttachmentPoint =null on section: " + nextSection.sectionId);
 						}
-					join.localScale.y = joinWidth;
-					join.localScale.x = joinWidth;
+						var joinLength:float =  Vector3.Distance(join.position,nextSection.joinAttachmentPoint.position);
+						join.localScale.z = joinLength +0.2;
+						var joinWidthMax :float = 1;
+						var joinWidth =(0.8/joinLength)*0.75;
+							if(joinWidth > joinWidthMax){
+								joinWidth = joinWidthMax;
+							}
+						join.localScale.y = joinWidth;
+						join.localScale.x = joinWidth;
+					}
 				}
 			}
 		}
 	}
+	if(updateNext){
+		newDirection = true;
+		UpdateNextInChain();
+		if(spawnFieldVisible == true){
+			setSpawnFieldVisible(false);
+		}
+	}
 	
+}
 
+function LateUpdate(){
 	if(updateNext){
 		if(addSectionOnUpdateNext){
 			addSectionOnUpdateNext = false;
 			callAddSection();
 		}
-		newDirection = true;
-		UpdateNextInChain();	
 	}
 }
 

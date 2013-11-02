@@ -50,6 +50,7 @@
      <Compile Include="Assets\Scripts\BetweenLevels.js" />
      <Compile Include="Assets\Scripts\GameManager.js" />
      <Compile Include="Assets\Scripts\LookAt.js" />
+     <Compile Include="Assets\Scripts\PowerSphere.js" />
      <Compile Include="Assets\Scripts\SectionPickUp.js" />
      <Compile Include="Assets\Scripts\SmoothFollow.js" />
      <Compile Include="Assets\Scripts\SmoothLookAt.js" />
