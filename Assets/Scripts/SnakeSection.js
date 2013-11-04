@@ -76,7 +76,8 @@ private var rightRangeProjectionPoint:Transform;
 private var conected:boolean = true;
 private var selfDestructSet:boolean = false;
 
-private var updateNext:boolean;
+@System.NonSerialized
+var updateNext:boolean;
 
 
 //@System.NonSerialized
@@ -161,7 +162,7 @@ function Start(){
 		rightRangeProjectionPoint = transform.FindChild("Body/rightRangeProjectionPoint").transform;
 	}else{
 		spawnForceField = transform.FindChild("Body/SpawnForceField").transform;
-		Body.localScale = Vector3.zero;
+		Body.localScale = Vector3(0.1,0.1,0.1);
 		spawning = true;
 	}
 	
@@ -706,6 +707,7 @@ function move(){
 		}
 	}
 	if(updateNext){
+		controller.resetDirection();
 		newDirection = true;
 		UpdateNextInChain();
 		if(spawnFieldVisible == true){

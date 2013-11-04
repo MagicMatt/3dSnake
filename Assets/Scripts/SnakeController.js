@@ -74,6 +74,7 @@ private var activeSectionPickUps:Array;
 
 
 
+
 var gameManager:GameManager;
 
 
@@ -310,9 +311,13 @@ function setRespawnDirection(respawnRotation:Quaternion){
 }
 
 function addPickUpSection(){
-	var snakeSection:SnakeSection = addSection(snakeLength);
-	var lastSection:SnakeSection = getPreviousSection(snakeLength-1);
+	var lastSection:SnakeSection = getSection(snakeLength-1);
 	if(lastSection != null){
+	Debug.Log("addPickUpSection lastSection.updateNext: " + lastSection.updateNext);
+		if(lastSection.updateNext){
+			//yield;
+		}
+		var snakeSection:SnakeSection = addSection(snakeLength);
 		snakeSection.gameObject.transform.position = lastSection.gameObject.transform.position;
 		snakeSection.gameObject.transform.rotation = lastSection.gameObject.transform.rotation;
 		var body:Transform = snakeSection.gameObject.transform.FindChild("Body").transform;
@@ -320,17 +325,18 @@ function addPickUpSection(){
 		body.rotation = lastSection.Body.rotation;
 		snakeSection.gameObject.transform.Translate(-snakeSection.sectionLength * lastSection.gameObject.transform.forward,Space.World);
 		snakeSection.stepCount = lastSection.stepCount;
-		snakeSection.direction = lastSection.direction;
-		snakeSection.nextDirection = lastSection.nextDirection;
+		snakeSection.direction =0;// lastSection.direction;
+		snakeSection.nextDirection = 0;//lastSection.nextDirection;
 		snakeSection.moveTotal = lastSection.moveTotal;
 		snakeSection.newDirection = lastSection.newDirection;
 		snakeSection.mode = lastSection.mode;
 		lastSection.conector.renderer.enabled = true;
-	}
+
 	snakeSection.speed = speed;
 	snakeSection.isEnabled = true;
 	snakeSection.setSpawnFieldVisible(true);
 	incrementLengthDisplayNum();
+	}
 	//Time.timeScale = 0;
 	
 	//snakeSection.isEnabled = false;
@@ -395,21 +401,30 @@ function Update () {
 		init();
 	}
 	if(alive == true){
-		handleInput();
-		if(nextDirection != 0){
-			if(acceptInput){
+		
+		var input:boolean = handleInput();
+		if((acceptInput == true) && (input == true)){
+			if(nextDirection!= 0){
 				snakeHead.SetMovement(nextDirection);
-				acceptInput = false;
+		
 			}
+		}
+		if(input == true){
+			acceptInput = false;
 		}else{
 			acceptInput = true;
 		}
 		
-		checkSectionContact();
-		setCameraToHeight();
-		updateAudio();
+	checkSectionContact();
+	setCameraToHeight();
+	updateAudio();
 		
 	}
+}
+
+function resetDirection(){
+	//acceptInput = _acceptInput;
+	nextDirection = 0;
 }
 
 function rangeFinder(){
@@ -590,30 +605,43 @@ function setCameraToHeight(){
 	Camera.main.transform.localPosition.y = Mathf.Lerp (Camera.main.transform.localPosition.y, cameraHeight, heightDamping * Time.deltaTime);;
 }
 
-function handleInput():void{
+function handleInput():boolean{
 	var horizontal:float = Input.GetAxis("Horizontal");
 	var vertical:float =Input.GetAxis("Vertical");
-
-		nextDirection = 0;
- 	if (vertical > 0) {
-  		nextDirection = 1;
-  		//UP
- 	}
-	if (horizontal > 0) {
-		nextDirection = 2;
-		//RIGHT
- 	}
-	if (vertical < 0) {
-		if(snakeHead.getContact() == false){
-	  		nextDirection = 3;
-	  		//DOWN
-	 	}
- 	}
- 	if (horizontal < 0) {
-  		nextDirection = 4;
- 		//LEFT
-	}
+	var input:boolean = false;
+		//Debug.Log("----------------------------------------");
 	
+	 	if (vertical > 0) {
+	  		nextDirection = 1;
+	  	//	Debug.Log("vertical input = true: " + vertical);
+	  		input = true;
+	  		//UP
+	 	}
+		if (horizontal > 0) {
+			nextDirection = 2;
+		//	Debug.Log("horizontal input = true: " + horizontal);
+	  		input = true;
+			//RIGHT
+	 	}
+		if (vertical < 0) {
+			if(snakeHead.getContact() == false){
+		  		nextDirection = 3;
+		  	//	Debug.Log("vertical input = true: " + vertical);
+	  		input = true;
+		  		//DOWN
+		 	}
+	 	}
+	 	if (horizontal < 0) {
+	  		nextDirection = 4;
+	  	//	Debug.Log("horizontal input = true: " + horizontal);
+	  		input = true;
+	 		//LEFT
+		}
+	
+	
+	//	Debug.Log("vertical: " + vertical + ", horizontal: " + horizontal);
+		//Debug.Log("input: " + input+", acceptInput: " + acceptInput + ", nextDirection: " + nextDirection);
+	//
 	var r_vertical:float =Input.GetAxis("R_Vertical");
 	//Debug.Log("r_vertical: " + r_vertical);
 	
@@ -632,5 +660,6 @@ function handleInput():void{
 	if (Input.GetKey(KeyCode.V)){
 		adjustSpeed(-1);
 	}
+	return input;
 }
 
