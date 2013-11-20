@@ -9,16 +9,15 @@ var spawnDir_3_X_pos:boolean = true;
 var spawnDir_4_X_neg:boolean = true;
 var defaultSpawnDir:int = 1;
 var indicatorLight:Light;
-var sparks:ParticleSystem;
+
 var availableSpawnDirections:Hashtable;
 var defaultSpawnRotation:Quaternion;
 
 
 function Start(){
-	sparks = transform.FindChild("Sparks").particleSystem;
-	indicatorLight = transform.FindChild("IndicatorLight").light;
+indicatorLight = transform.FindChild("IndicatorLight").light;
 	indicatorLight.color = Color.green;
-	sparks.enableEmission = false;
+	
 	
 	setUpSpawnDirections();
 }
@@ -86,12 +85,12 @@ function checkSpawnRotation(spawnRotation:Quaternion){
 }
 
 function activate(){
-	sparks.enableEmission = true;
+
 	isActive = true;
 	indicatorLight.color = Color.red;
 }
 
 function deploySection(){
 	deployed = true;
-	sparks.enableEmission = false;
+	
 }

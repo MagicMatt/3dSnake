@@ -48,7 +48,7 @@ var stableNum:float = 0;
 var statusBar:StatusBar;
 
 var cameraSphere:Transform;
-var cameraOffset:Transform;
+
 
 private var callInit:boolean = true;
 
@@ -70,6 +70,8 @@ private var lives:int;
 
 private var respawnDirection:Quaternion;
 private var activeSectionPickUps:Array;
+
+private var antiClippingCamera:AntiClippingCamera;
 
 
 
@@ -93,7 +95,7 @@ function Start(){
 	setRespawnVars(sectionPickUp); 
 	var respawnRotation:Quaternion = sectionPickUp.defaultSpawnRotation;
 	setRespawnDirection(respawnRotation);
-	
+	antiClippingCamera = cameraSphere.GetComponent(AntiClippingCamera);
 	initialiseSnake();
 }
 
@@ -104,6 +106,7 @@ function initialiseSnake(){
 	snakeLength = 0;
 	destroyedSectionCount = 0;
 	nextDirection = 0;
+	speed = initialSpeed;
 	for(var i:int =0; i < snakeTargetLength;i++){
 		var snakeSection:SnakeSection = addSection(i);
 		snakeSection.gameObject.transform.rotation = respawnDirection;
@@ -120,8 +123,8 @@ function initialiseSnake(){
 		
 		if(i == 0){
 			Camera.main.GetComponent(SmoothLookAt).target = snakeSection.transform.FindChild("Body").transform;
-			cameraSphere.GetComponent(AntiClippingCamera).setTarget(snakeSection.transform.FindChild("Body").transform);
-		
+			antiClippingCamera.setTarget(snakeSection.transform.FindChild("Body").transform);
+			antiClippingCamera.cameraEnabled = true;
 		}
 	}
 
@@ -175,7 +178,6 @@ Debug.Log("Snake Controller init()");
  	setSpeed();
  	setCameraToHeight();
  	makeJoins();
- //	setLengthText();
  	setDisplayLength();
  	rangeFinder();
 }
@@ -574,6 +576,7 @@ function kill(){
 	if(proximity){
 		proximity.Stop();
 	}
+	antiClippingCamera.cameraEnabled = false;
 	stopSnake();
 }
 
@@ -611,7 +614,7 @@ function handleInput():boolean{
 	var input:boolean = false;
 		//Debug.Log("----------------------------------------");
 	
-	 	if (vertical > 0) {
+	 	if (vertical < 0) {
 	  		nextDirection = 1;
 	  	//	Debug.Log("vertical input = true: " + vertical);
 	  		input = true;
@@ -623,7 +626,7 @@ function handleInput():boolean{
 	  		input = true;
 			//RIGHT
 	 	}
-		if (vertical < 0) {
+		if (vertical > 0) {
 			if(snakeHead.getContact() == false){
 		  		nextDirection = 3;
 		  	//	Debug.Log("vertical input = true: " + vertical);

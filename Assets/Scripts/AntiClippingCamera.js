@@ -5,13 +5,13 @@
      
    
 
-private var  target:Transform;
+private var target:Transform;
 var cameraTarget:GameObject;
 var wantedCameraPosition:Transform;
 var wpcIntitialX:float = 0;
 var wpcIntitialY:float = 5;
 var wpcIntitialZ:float = -10 ;
-
+var cameraEnabled:boolean = false;
 
 
 
@@ -54,8 +54,18 @@ function initialise(){
 
 function setTarget(_target:Transform){
 	target = _target;
-	var wantedCameraPosObject:GameObject = Instantiate(cameraTarget,Vector3.zero, Quaternion.identity);
-	wantedCameraPosition = wantedCameraPosObject.transform;
+	if(wantedCameraPosition == null){
+		var wantedCameraPosObject:GameObject = Instantiate(cameraTarget,Vector3(wpcIntitialX,wpcIntitialY,wpcIntitialZ), Quaternion.identity);
+		wantedCameraPosition = wantedCameraPosObject.transform;
+	}
+	wantedCameraPosition.transform.rotation = Quaternion.identity;
+   	wantedCameraPosition.transform.position = Vector3.zero;
+  	wantedCameraPosition.transform.parent = target;
+   	wantedCameraPosition.transform.localPosition = Vector3(wpcIntitialX,wpcIntitialY,wpcIntitialZ);
+	transform.position =  wantedCameraPosition.transform.position;
+	
+
+//	transform.position =  wantedCameraPosition.transform.position;
 }
 
 
@@ -73,6 +83,9 @@ function Update(){
     	}
     	ready = false;
         return;
+    }
+    if(!cameraEnabled){
+    	return;
     }
     	
     var dcp:Vector3 =wantedCameraPosition.position;//

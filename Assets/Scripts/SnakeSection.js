@@ -248,7 +248,7 @@ function FixedUpdate () {
 			}
 			var hit1 : RaycastHit;
 			var range1:float = 1000000;
-			//Debug.DrawRay(leftRangeProjectionPoint.position,rayDirection*rangeDist,Color.green);
+			Debug.DrawRay(leftRangeProjectionPoint.position,rayDirection*rangeDist,Color.green);
 			Physics.Raycast (leftRangeProjectionPoint.position,rayDirection, hit1, rangeDist);
 			if((hit1.collider != null)&&(hit1.collider.CompareTag("AddSectionPickUp") == false) ){
 					range1 = hit1.distance;
@@ -259,7 +259,7 @@ function FixedUpdate () {
 				
 			var hit2 : RaycastHit;
 			var range2:float = 1000000;
-		//	Debug.DrawRay(rightRangeProjectionPoint.position,rayDirection*rangeDist,Color.red);sectionVisible
+			Debug.DrawRay(rightRangeProjectionPoint.position,rayDirection*rangeDist,Color.red);
 			Physics.Raycast (rightRangeProjectionPoint.position,rayDirection, hit2, rangeDist);
 				if((hit2.collider != null)&&(hit2.collider.CompareTag("AddSectionPickUp") == false) ){
 					range2 = hit2.distance;
@@ -269,7 +269,7 @@ function FixedUpdate () {
 			
 			var hit3 : RaycastHit;
 			var range3:float = 1000000;
-			//Debug.DrawRay(rayProjectionPoint.position,rayDirection*rangeDist,Color.blue);
+			Debug.DrawRay(rayProjectionPoint.position,rayDirection*rangeDist,Color.blue);
 			Physics.Raycast (rayProjectionPoint.position,rayDirection, hit3, rangeDist);
 				if((hit3.collider != null)&&(hit3.collider.CompareTag("AddSectionPickUp") == false) ){
 					range3 = hit3.distance;
