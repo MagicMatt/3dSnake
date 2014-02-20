@@ -5,16 +5,18 @@ private var hit : RaycastHit;
 var gameManager:GameManager;
 
 function Start () {
-	var statsManagerObject:GameObject = GameObject.Find("GameManager");
-	gameManager = statsManagerObject.GetComponentInChildren(GameManager);
+	var gameManagerObject:GameObject = GameObject.Find("GameManagerObject");
+	gameManager = gameManagerObject.GetComponentInChildren(GameManager);
 }
 
 function Update () {
 
 	if(Input.GetMouseButtonDown(0)){
+	
 		ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 		if(Physics.Raycast(ray, hit)){
 			if(hit.transform.name == "StartScreen"){
+			gameManager.incrementLevel();
 				gameManager.loadLevel();
 			}
 			

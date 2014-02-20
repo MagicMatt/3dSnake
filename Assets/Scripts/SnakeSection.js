@@ -138,6 +138,7 @@ function Start(){
 	
 	explosion = Resources.Load("Detonator/Prefab/Detonator-Simple");
 	Body = transform.FindChild("Body").transform;
+	Debug.Log("section " + sectionId + " Body: " + Body);
 	joinAttachmentPoint = transform.FindChild("Body/JoinAttachmentPoint").transform;
 	join = transform.FindChild("Body/JoinContainer").transform;
 	conector = transform.FindChild("Body/JoinContainer/Conector").transform;
@@ -189,7 +190,7 @@ function setSectionVisible(_visible:boolean,passOnVisibility:boolean){
 		if(sectionVisible == true){
 			if(sectionId != 0){
 				setSpawnFieldVisible(spawnFieldVisible);
-		}
+			}
 			forceField.renderer.enabled = forceFieldVisible;
 			conector.renderer.enabled = joinVisible;
 		}
@@ -312,28 +313,23 @@ function OnTriggerEnter(other : Collider) {
 		}	
 		if(sectionId ==controller.snakeLength-1){
 			if(other.CompareTag("AddSectionPickUp")){
-			var sectionPickUp:SectionPickUp = other.gameObject.GetComponent(SectionPickUp);
-				if(sectionPickUp.deployed == false){
-					addSectionOnUpdateNext = true;	
-					sectionPickUp.deploySection();
-					//controller.
-					//pickUpToDestroy = other.gameObject;			
-				}
+			var spawnPoint:SpawnPoint = other.gameObject.GetComponent(SpawnPoint);
+			
 			}
 		}	
 		if(sectionId == 0){
 			if(other.CompareTag("AddSectionPickUp")){
-				sectionPickUp = other.gameObject.GetComponent(SectionPickUp);
-				if(sectionPickUp.isActive == false){
-					sectionPickUp.activate();
+				spawnPoint = other.gameObject.GetComponent(SpawnPoint);
+				if(spawnPoint.isActive == false){
+					spawnPoint.activate();
 					controller.incrementLengthDisplayNum();
-					controller.setRespawnVars(sectionPickUp);
+					controller.setRespawnVars(spawnPoint,false);
 				}					
 			}
 		}	
 		if(other.CompareTag("PowerSphere")){
-				var powerSphere:PowerSphere = other.gameObject.GetComponent(PowerSphere);
-				powerSphere.explode();
+			var powerSphere:PowerSphere = other.gameObject.GetComponent(PowerSphere);
+			powerSphere.explode();
 				addSectionOnUpdateNext = true;	
 		}
 		//Debug.Log("OnTriggerEnter");
@@ -361,9 +357,9 @@ function OnTriggerExit(other : Collider) {
 	if(sectionId == 0){
 			if(other.CompareTag("AddSectionPickUp")){
 				//set direction for spawnpoint	
-				var sectionPickUp:SectionPickUp = other.gameObject.GetComponent(SectionPickUp);
-				if(sectionPickUp.deployed == false){
-					var respawnRotation = sectionPickUp.checkSpawnRotation(transform.rotation);
+				var spawnPoint:SpawnPoint = other.gameObject.GetComponent(SpawnPoint);
+				if(spawnPoint.deployed == false){
+					var respawnRotation = spawnPoint.checkSpawnRotation(transform.rotation);
 					controller.setRespawnDirection(respawnRotation);
 				}		
 			}

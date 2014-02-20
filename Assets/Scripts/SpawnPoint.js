@@ -92,5 +92,4 @@ function activate(){
 
 function deploySection(){
 	deployed = true;
-	
 }
